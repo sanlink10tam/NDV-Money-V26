@@ -1335,7 +1335,7 @@ const App: React.FC = () => {
         } else if (loan.settlementType === 'PARTIAL') {
           addNotification(loan.userId, 'Tất toán 1 phần thành công', `Khoản vay ID ${loan.id} đã được tất toán 1 phần gốc (${(loan.partialAmount || 0).toLocaleString()} đ) thành công.`, 'LOAN');
         } else {
-          addNotification(loan.userId, 'Tất toán thành công', `Khoản vay ID ${loan.id} đã được tất toán toàn bộ gốc và lãi thành công.`, 'LOAN');
+          addNotification(loan.userId, 'Tất toán thành công', `Khoản vay ID ${loan.id} đã được tất toán toàn bộ khoản vay thành công.`, 'LOAN');
         }
       } else if (action === 'REJECT') {
         const isSettlementReject = loan.status === 'CHỜ TẤT TOÁN';

@@ -78,7 +78,7 @@ const TermsModal: React.FC<TermsModalProps> = ({ onClose }) => {
               <h4 className="text-[10px] font-black uppercase tracking-widest">4. QUY TRÌNH GIẢI NGÂN & PHÍ</h4>
             </div>
             <p className="text-[11px] text-gray-400 leading-relaxed font-medium">
-              Khoản vay sẽ được giải ngân vào tài khoản ngân hàng chính chủ của khách hàng sau khi hồ sơ được phê duyệt. Khách hàng đồng ý với các điều khoản và lãi suất được hiển thị minh bạch tại thời điểm đăng ký khoản vay. Hệ thống sẽ thực hiện giải ngân nhanh chóng ngay khi hợp đồng được xác thực thành công.
+              Khoản vay sẽ được giải ngân vào tài khoản ngân hàng chính chủ của khách hàng sau khi hồ sơ được phê duyệt. Khách hàng đồng ý với các điều khoản và quy định được hiển thị minh bạch tại thời điểm đăng ký khoản vay. Hệ thống sẽ thực hiện giải ngân nhanh chóng ngay khi hợp đồng được xác thực thành công.
             </p>
           </section>
 

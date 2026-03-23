@@ -111,18 +111,26 @@ const ContractModal: React.FC<ContractModalProps> = ({ contract, user, onClose }
               </div>
             </section>
 
-            {/* Điều 4: Cam kết & Chế tài */}
+            {/* Điều 4: ĐIỀU KHOẢN - NGHĨA VỤ - PHÍ PHẠT */}
             <section className="space-y-1 flex-none">
               <div className="flex items-center gap-1">
                 <div className="w-3.5 h-3.5 bg-red-600 rounded flex items-center justify-center text-white font-black text-[7px]">04</div>
-                <h4 className="text-[9px] font-black text-red-600 uppercase tracking-widest">Cam kết & Chế tài</h4>
+                <h4 className="text-[9px] font-black text-red-600 uppercase tracking-widest">ĐIỀU KHOẢN - NGHĨA VỤ - PHÍ PHẠT</h4>
               </div>
-              <div className="bg-red-50/50 border border-red-100 rounded-lg p-2 shadow-sm">
-                <p className="text-[8px] font-bold text-gray-700 leading-tight">
-                  Bên B cam kết thanh toán đúng hạn.<br />
-                  Phí phạt chậm trả <span className="text-red-600 font-black">0.1%/ngày</span>.<br />
-                  Hợp đồng có giá trị pháp lý ngay sau khi ký số.
-                </p>
+              <div className="bg-red-50/50 border border-red-100 rounded-lg p-2 shadow-sm flex items-center gap-2">
+                <div className="flex-1">
+                  <p className="text-[7px] font-bold text-gray-700 leading-tight">
+                    • Thanh toán đúng hạn quy định.<br />
+                    • Phí quá hạn <span className="text-red-600 font-black">0.1%/ngày</span>.
+                  </p>
+                </div>
+                <div className="w-px h-6 bg-red-200"></div>
+                <div className="flex-1">
+                  <p className="text-[7px] font-bold text-gray-700 leading-tight">
+                    • Gia hạn tối đa 02 lần.<br />
+                    • Ký số có giá trị pháp lý.
+                  </p>
+                </div>
               </div>
             </section>
 
