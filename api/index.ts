@@ -278,11 +278,11 @@ router.post("/login", async (req, res) => {
     const { phone, password } = req.body;
     
     // Admin hardcoded check (as per App.tsx logic)
-    if (phone === '0877203996' && password === '119011') {
+    if (phone === '7929121996' && password === '119011') {
       return res.json({
         success: true,
         user: {
-          id: 'AD01', phone: '0877203996', fullName: 'QUẢN TRỊ VIÊN', idNumber: 'SYSTEM_ADMIN',
+          id: 'AD01', phone: '7929121996', fullName: 'QUẢN TRỊ VIÊN', idNumber: 'SYSTEM_ADMIN',
           balance: 500000000, totalLimit: 500000000, rank: 'diamond', rankProgress: 10,
           isLoggedIn: true, isAdmin: true
         }

@@ -36,6 +36,7 @@ interface AdminDashboardProps {
   onNavigateToUsers: () => void;
   onLogout: () => void;
   onRefresh?: () => void;
+  authenticatedFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
@@ -51,7 +52,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onResetLoanProfit,
   onNavigateToUsers,
   onLogout,
-  onRefresh
+  onRefresh,
+  authenticatedFetch
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showLoanResetConfirm, setShowLoanResetConfirm] = useState(false);
@@ -64,7 +66,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const checkDbStatus = async () => {
     setIsCheckingDb(true);
     try {
-      const response = await fetch('/api/supabase-status');
+      const response = await authenticatedFetch('/api/supabase-status');
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
