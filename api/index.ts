@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import path from "path";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 // Only try to load .env file if we're not in production (Vercel provides env vars directly)
 if (process.env.NODE_ENV !== "production") {
@@ -13,6 +14,9 @@ if (process.env.NODE_ENV !== "production") {
 
 let SUPABASE_URL = process.env.SUPABASE_URL || "";
 let SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
+const JWT_SECRET = process.env.JWT_SECRET || "ndv-money-secret-key-2026";
+const ADMIN_PHONE = process.env.ADMIN_PHONE || '7929121996';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '119011';
 
 const isValidUrl = (url: string) => {
   if (!url) return false;
@@ -123,6 +127,35 @@ router.use((req, res, next) => {
     });
   }
   next();
+});
+
+// Authentication Middleware
+const authenticateToken = (req: any, res: any, next: any) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    // Allow login and register without token
+    if (req.path === '/login' || req.path === '/register' || req.path === '/api-health' || req.path === '/supabase-status') {
+      return next();
+    }
+    return res.status(401).json({ error: "Yêu cầu xác thực" });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) return res.status(403).json({ error: "Token không hợp lệ hoặc đã hết hạn" });
+    req.user = user;
+    next();
+  });
+};
+
+// Apply auth middleware to all routes except login/register/health
+router.use((req, res, next) => {
+  const publicRoutes = ['/login', '/register', '/api-health', '/supabase-status', '/keep-alive'];
+  if (publicRoutes.includes(req.path)) {
+    return next();
+  }
+  authenticateToken(req, res, next);
 });
 
 // Helper to estimate JSON size in MB
@@ -278,14 +311,17 @@ router.post("/login", async (req, res) => {
     const { phone, password } = req.body;
     
     // Admin hardcoded check (as per App.tsx logic)
-    if (phone === '0877203996' && password === '119011') {
+    if (phone === ADMIN_PHONE && password === ADMIN_PASSWORD) {
+      const adminUser = {
+        id: 'AD01', phone: ADMIN_PHONE, fullName: 'QUẢN TRỊ VIÊN', idNumber: 'SYSTEM_ADMIN',
+        balance: 500000000, totalLimit: 500000000, rank: 'diamond', rankProgress: 10,
+        isLoggedIn: true, isAdmin: true
+      };
+      const token = jwt.sign({ id: adminUser.id, isAdmin: true }, JWT_SECRET, { expiresIn: '24h' });
       return res.json({
         success: true,
-        user: {
-          id: 'AD01', phone: '0877203996', fullName: 'QUẢN TRỊ VIÊN', idNumber: 'SYSTEM_ADMIN',
-          balance: 500000000, totalLimit: 500000000, rank: 'diamond', rankProgress: 10,
-          isLoggedIn: true, isAdmin: true
-        }
+        user: adminUser,
+        token
       });
     }
 
@@ -324,13 +360,64 @@ router.post("/login", async (req, res) => {
 
     // Remove password before sending
     const { password: _, ...userWithoutPassword } = user;
+    const token = jwt.sign({ id: user.id, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '24h' });
     
     res.json({
       success: true,
-      user: userWithoutPassword
+      user: userWithoutPassword,
+      token
     });
   } catch (e: any) {
     console.error("Lỗi login:", e);
+    res.status(500).json({ error: "Internal Server Error", message: e.message });
+  }
+});
+
+router.post("/register", async (req, res) => {
+  try {
+    const client = initSupabase();
+    if (!client) return res.status(503).json({ error: "Supabase not configured" });
+    
+    const userData = req.body;
+    if (!userData || !userData.phone || !userData.password) {
+      return res.status(400).json({ error: "Thiếu thông tin đăng ký" });
+    }
+
+    // Check if user already exists
+    const { data: existingUser, error: checkError } = await client
+      .from('users')
+      .select('id')
+      .eq('phone', userData.phone)
+      .limit(1);
+    
+    if (checkError) throw checkError;
+    if (existingUser && existingUser.length > 0) {
+      return res.status(400).json({ error: "Số điện thoại này đã được đăng ký." });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(userData.password, salt);
+
+    const newUser = {
+      ...userData,
+      password: hashedPassword,
+      updatedAt: Date.now()
+    };
+
+    const sanitizedUser = sanitizeData([newUser], USER_COLUMNS)[0];
+    
+    const { error: insertError } = await client.from('users').insert(sanitizedUser);
+    if (insertError) throw insertError;
+
+    const token = jwt.sign({ id: sanitizedUser.id, isAdmin: false }, JWT_SECRET, { expiresIn: '24h' });
+    
+    res.json({
+      success: true,
+      token
+    });
+  } catch (e: any) {
+    console.error("Lỗi register:", e);
     res.status(500).json({ error: "Internal Server Error", message: e.message });
   }
 });

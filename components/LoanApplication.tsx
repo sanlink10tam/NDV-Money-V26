@@ -758,7 +758,8 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
     
     const amountAll = Math.round(settleLoan.amount + (settleLoan.fine || 0));
     const amountPrincipal = Math.round((settleLoan.amount * 0.15) + (settleLoan.fine || 0));
-    const amountPartial = Math.round(partialAmount + (settleLoan.amount * 0.15) + (settleLoan.fine || 0));
+    const remainingPrincipal = settleLoan.amount - partialAmount;
+    const amountPartial = Math.round(partialAmount + (remainingPrincipal * 0.15) + (settleLoan.fine || 0));
     
     // Logic giới hạn gia hạn 2 lần
     const extensionCount = settleLoan.extensionCount || 0;
@@ -769,7 +770,7 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
     const currentAmount = settleType === 'ALL' ? amountAll : (settleType === 'PRINCIPAL' ? amountPrincipal : amountPartial);
     const currentPrefix = settleType === 'ALL' ? 'TT' : (settleType === 'PRINCIPAL' ? 'GH' : 'TTMP');
     const content = `${currentPrefix}-${settleLoan.id}`;
-    const qrUrl = `https://img.vietqr.io/image/970454-0877203996-compact2.png?amount=${currentAmount}&addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent('DO TRUNG NGON')}`;
+    const qrUrl = `https://img.vietqr.io/image/970426-7929121996-compact2.png?amount=${currentAmount}&addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent('DO TRUNG NGON')}`;
 
     return (
       <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in slide-in-from-bottom-10 duration-500 overflow-hidden">
@@ -931,8 +932,8 @@ const LoanApplication: React.FC<LoanApplicationProps> = ({ user, loans, systemBu
 
                           <div className="flex-1 space-y-2">
                             {[
-                              { label: 'Ngân hàng', value: 'BVBANK TIMO', copy: false },
-                              { label: 'Số tài khoản', value: '0877203996', copy: true },
+                              { label: 'Ngân hàng', value: 'MSB', copy: false },
+                              { label: 'Số tài khoản', value: '7929121996', copy: true },
                               { label: 'Số tiền', value: `${currentAmount.toLocaleString()} đ`, copy: true, rawValue: currentAmount.toString() },
                               { label: 'Nội dung', value: content, copy: true, highlight: true }
                             ].map((item, i) => (
