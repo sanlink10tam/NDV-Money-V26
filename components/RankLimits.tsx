@@ -170,7 +170,7 @@ const RankLimits: React.FC<RankLimitsProps> = ({ user, isGlobalProcessing, onBac
   if (view === RankView.PAYMENT && selectedRank) {
     const fee = Math.round(selectedRank.limitVal * 0.05);
     const transferContent = `${selectedRank.code} ${user?.id || 'xxxx'}`;
-    const qrUrl = `https://img.vietqr.io/image/970426-7929121996-compact2.png?amount=${fee}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent('DO TRUNG NGON')}`;
+    const qrUrl = `https://img.vietqr.io/image/970454-0877203996-compact2.png?amount=${fee}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent('DO TRUNG NGON')}`;
 
     return (
       <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in slide-in-from-bottom-10 duration-500 overflow-hidden">
@@ -268,8 +268,8 @@ const RankLimits: React.FC<RankLimitsProps> = ({ user, isGlobalProcessing, onBac
 
                         <div className="flex-1 space-y-2">
                           {[
-                            { label: 'Ngân hàng', value: 'MSB', copy: false },
-                            { label: 'Số tài khoản', value: '7929121996', copy: true },
+                            { label: 'Ngân hàng', value: 'BVBANK TIMO', copy: false },
+                            { label: 'Số tài khoản', value: '0877203996', copy: true },
                             { label: 'Số tiền', value: `${fee.toLocaleString()} đ`, copy: true, rawValue: fee.toString() },
                             { label: 'Nội dung', value: transferContent, copy: true, highlight: true }
                           ].map((item, i) => (

@@ -73,43 +73,6 @@ const App: React.FC = () => {
     }
     return null;
   });
-  const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('vnv_token');
-  });
-
-  const handleLogout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('vnv_user');
-    localStorage.removeItem('vnv_token');
-    setCurrentView(AppView.LOGIN);
-  };
-
-  const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
-    if (!token && !url.includes('/api/login') && !url.includes('/api/register')) {
-      return new Response(JSON.stringify({ error: "Yêu cầu xác thực" }), { status: 401 });
-    }
-
-    const headers = {
-      ...options.headers,
-      'Authorization': token ? `Bearer ${token}` : '',
-      'Content-Type': options.body ? 'application/json' : (options.headers as any)?.['Content-Type'] || undefined,
-    };
-    
-    // Remove Content-Type if it's undefined
-    if (!headers['Content-Type']) delete (headers as any)['Content-Type'];
-
-    const response = await fetch(url, { ...options, headers });
-    
-    if (response.status === 401 || response.status === 403) {
-      // Don't logout if we're already on the login page or if it's a login attempt
-      if (currentView !== AppView.LOGIN && !url.includes('/api/login')) {
-        handleLogout();
-      }
-    }
-    
-    return response;
-  };
   const [loans, setLoans] = useState<LoanRecord[]>(() => {
     const saved = localStorage.getItem('ndv_loans');
     return saved ? JSON.parse(saved) : [];
@@ -203,8 +166,9 @@ const App: React.FC = () => {
       const next = [newNotif, ...prev].slice(0, 10); // Keep more than 3 for safety, Dashboard/Modal will slice for display
       
       // Sync notification to server immediately
-      authenticatedFetch('/api/notifications', {
+      fetch('/api/notifications', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(next.slice(0, 3))
       }).catch(e => console.error("Lỗi lưu thông báo:", e));
       
@@ -223,11 +187,6 @@ const App: React.FC = () => {
 
     const fetchData = async (isInitial = false, fetchFull = false) => {
       if (!isMounted) return;
-      
-      if (!user || !token) {
-        if (isInitial) setIsInitialized(true);
-        return;
-      }
 
       const controller = new AbortController();
       const timeout = setTimeout(() => {
@@ -264,7 +223,7 @@ const App: React.FC = () => {
         const url = `/api/data?${params.toString()}`;
         
         console.log(`[FETCH] Loading data from ${url} (full=${fetchFull})`);
-        const response = await authenticatedFetch(url, { signal: controller.signal });
+        const response = await fetch(url, { signal: controller.signal });
         clearTimeout(timeout);
 
         if (!response.ok) {
@@ -504,7 +463,7 @@ const App: React.FC = () => {
         socketRef.current.disconnect();
       }
     };
-  }, [user, token]);
+  }, []);
 
   // Re-join room when user changes
   useEffect(() => {
@@ -663,8 +622,9 @@ const App: React.FC = () => {
 
       // Persist ONLY updated items to server to save egress
       if (updatedLoans.length > 0 || updatedUsers.length > 0) {
-        authenticatedFetch('/api/sync', {
+        fetch('/api/sync', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             loans: updatedLoans.length > 0 ? updatedLoans : undefined,
             users: updatedUsers.length > 0 ? updatedUsers : undefined
@@ -703,8 +663,6 @@ const App: React.FC = () => {
         if (data.success) {
           const loggedInUser = { ...data.user, isLoggedIn: true };
           setUser(loggedInUser);
-          setToken(data.token);
-          localStorage.setItem('vnv_token', data.token);
           setCurrentView(loggedInUser.isAdmin ? AppView.ADMIN_DASHBOARD : AppView.DASHBOARD);
           if (!loggedInUser.isAdmin && !hasBankInfo(loggedInUser)) {
             setShowBankWarning(true);
@@ -775,19 +733,11 @@ const App: React.FC = () => {
       setShowBankWarning(true);
 
       // Background Sync - Only send the NEW user, not the whole array
-      const response = await fetch('/api/register', {
+      fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser)
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setToken(data.token);
-          localStorage.setItem('vnv_token', data.token);
-        }
-      }
+        body: JSON.stringify([newUser]) // Wrap in array for backend compatibility
+      }).catch(err => console.error("Background sync error (register):", err));
       
       isProcessingRef.current = false;
       setIsGlobalProcessing(false);
@@ -799,13 +749,8 @@ const App: React.FC = () => {
     }
   };
 
-  const [lastSyncTime, setLastSyncTime] = useState<number>(() => {
-    const saved = localStorage.getItem('ndv_last_sync_time');
-    return saved ? parseInt(saved) : 0;
-  });
-
   const fetchFullData = async (force = false) => {
-    if (!user || !token || isGlobalProcessing || !isTabActive) return;
+    if (!user || isGlobalProcessing || !isTabActive) return;
     
     // Cache logic: Only fetch if forced or if last fetch was more than 60 seconds ago
     const now = Date.now();
@@ -831,17 +776,10 @@ const App: React.FC = () => {
         params.append('loanFrom', '0');
         params.append('loanTo', '99'); // 100 loans
       }
-      
-      // Delta update logic
-      if (!force && lastSyncTime > 0) {
-        params.append('since', lastSyncTime.toString());
-      } else {
-        params.append('full', 'true');
-      }
-      
+      params.append('full', 'true');
       params.append('t', now.toString());
       
-      const response = await authenticatedFetch(`/api/data?${params.toString()}`, { signal: controller.signal });
+      const response = await fetch(`/api/data?${params.toString()}`, { signal: controller.signal });
       clearTimeout(timeout);
 
       const contentType = response.headers.get("content-type");
@@ -862,8 +800,6 @@ const App: React.FC = () => {
 
       if (data) {
         lastFullFetch.current = Date.now();
-        setLastSyncTime(Date.now());
-        localStorage.setItem('ndv_last_sync_time', Date.now().toString());
 
         if (data.loans) setLoans(prev => {
           const next = [...prev];
@@ -919,6 +855,13 @@ const App: React.FC = () => {
     } finally {
       setIsGlobalProcessing(false);
     }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setLoginError(null);
+    setRegisterError(null);
+    setCurrentView(AppView.LOGIN);
   };
 
   const handleApplyLoan = async (amount: number, signature?: string) => {
@@ -1001,12 +944,14 @@ const App: React.FC = () => {
 
       // Background Sync - Targeted (only send changed records)
       Promise.all([
-        authenticatedFetch('/api/loans', {
+        fetch('/api/loans', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify([newLoan]) // Only 1 loan
         }),
-        authenticatedFetch('/api/users', {
+        fetch('/api/users', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify([updatedUser]) // Only 1 user
         })
       ])
@@ -1066,8 +1011,9 @@ const App: React.FC = () => {
       setRegisteredUsers(newRegisteredUsers);
 
       // Background Sync - Targeted (only send changed records)
-      authenticatedFetch('/api/users', {
+      fetch('/api/users', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify([updatedUser])
       }).catch(err => console.error("Background sync error (upgrade):", err));
       
@@ -1118,8 +1064,9 @@ const App: React.FC = () => {
 
       // Background Sync - Only send the UPDATED loan
       if (updatedLoan) {
-        authenticatedFetch('/api/loans', {
+        fetch('/api/loans', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify([updatedLoan])
         })
         .then(async res => {
@@ -1355,8 +1302,9 @@ const App: React.FC = () => {
         monthlyStats: (action === 'SETTLE' || action === 'DISBURSE') ? newMonthlyStats : undefined
       };
 
-      const response = await authenticatedFetch('/api/sync', {
+      const response = await fetch('/api/sync', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(syncData)
       });
 
@@ -1500,8 +1448,9 @@ const App: React.FC = () => {
           monthlyStats: upgradeFee > 0 ? newMonthlyStats : undefined
         };
 
-        const response = await authenticatedFetch('/api/sync', {
+        const response = await fetch('/api/sync', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(syncData)
         });
 
@@ -1530,8 +1479,9 @@ const App: React.FC = () => {
   const handleResetRankProfit = async () => {
     setRankProfit(0);
     try {
-      await authenticatedFetch('/api/rankProfit', {
+      await fetch('/api/rankProfit', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rankProfit: 0 })
       });
     } catch (e) {
@@ -1542,8 +1492,9 @@ const App: React.FC = () => {
   const handleResetLoanProfit = async () => {
     setLoanProfit(0);
     try {
-      await authenticatedFetch('/api/loanProfit', {
+      await fetch('/api/loanProfit', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ loanProfit: 0 })
       });
     } catch (e) {
@@ -1553,7 +1504,7 @@ const App: React.FC = () => {
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      await authenticatedFetch(`/api/users/${userId}`, { method: 'DELETE' });
+      await fetch(`/api/users/${userId}`, { method: 'DELETE' });
       setRegisteredUsers(prev => prev.filter(u => u.id !== userId));
       setLoans(prev => prev.filter(l => l.userId !== userId));
     } catch (e) {
@@ -1606,7 +1557,7 @@ const App: React.FC = () => {
     
     for (const u of usersToDelete) {
       try {
-        await authenticatedFetch(`/api/users/${u.id}`, { method: 'DELETE' });
+        await fetch(`/api/users/${u.id}`, { method: 'DELETE' });
       } catch (e) {
         console.error("Lỗi khi dọn dẹp user:", u.id, e);
       }
@@ -1657,8 +1608,9 @@ const App: React.FC = () => {
         }
 
         // Persist to server - Targeted sync
-        authenticatedFetch('/api/users', {
+        fetch('/api/users', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify([updatedUser])
         }).catch(e => console.error("Lỗi lưu hồ sơ:", e));
       } catch (e) {
@@ -1680,8 +1632,9 @@ const App: React.FC = () => {
       setShowBankWarning(false);
       
       // Persist to server - Targeted sync
-      authenticatedFetch('/api/users', {
+      fetch('/api/users', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify([updatedUser])
       }).catch(e => console.error("Lỗi lưu tài khoản ngân hàng:", e));
     }
@@ -1701,7 +1654,7 @@ const App: React.FC = () => {
       params.append('checkStorage', 'true');
       params.append('t', Date.now().toString());
       
-      const response = await authenticatedFetch(`/api/data?${params.toString()}`);
+      const response = await fetch(`/api/data?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch data');
       
       const data = await response.json();
@@ -1775,8 +1728,9 @@ const App: React.FC = () => {
                 const newNotif = { ...updatedNotif, read: true };
                 setNotifications(prev => prev.map(n => n.id === id ? newNotif : n));
                 // Targeted Sync - Only send the changed notification
-                authenticatedFetch('/api/notifications', {
+                fetch('/api/notifications', {
                   method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify([newNotif])
                 }).catch(e => console.error("Lỗi lưu trạng thái thông báo:", e));
               }
@@ -1787,8 +1741,9 @@ const App: React.FC = () => {
                 const updatedNotifs = userNotifs.map(n => ({ ...n, read: true }));
                 setNotifications(prev => prev.map(n => n.userId === user.id ? { ...n, read: true } : n));
                 // Targeted Sync - Only send notifications for this user
-                authenticatedFetch('/api/notifications', {
+                fetch('/api/notifications', {
                   method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(updatedNotifs)
                 });
               }
@@ -1810,7 +1765,6 @@ const App: React.FC = () => {
               setViewLoanFromDash(null);
               setCurrentView(AppView.DASHBOARD);
             }}
-            token={token}
             initialLoanToSettle={settleLoanFromDash}
             initialLoanToView={viewLoanFromDash}
           />
@@ -1831,7 +1785,7 @@ const App: React.FC = () => {
             onShowEditProfile={() => setShowEditProfileModal(true)}
           />
         );
-      case AppView.ADMIN_DASHBOARD: return <AdminDashboard user={user} loans={loans} registeredUsersCount={registeredUsers.length} systemBudget={systemBudget} rankProfit={rankProfit} loanProfit={loanProfit} monthlyStats={monthlyStats} lastKeepAlive={lastKeepAlive} onResetRankProfit={handleResetRankProfit} onResetLoanProfit={handleResetLoanProfit} onNavigateToUsers={() => setCurrentView(AppView.ADMIN_USERS)} onLogout={handleLogout} onRefresh={() => fetchFullData(true)} authenticatedFetch={authenticatedFetch} />;
+      case AppView.ADMIN_DASHBOARD: return <AdminDashboard user={user} loans={loans} registeredUsersCount={registeredUsers.length} systemBudget={systemBudget} rankProfit={rankProfit} loanProfit={loanProfit} monthlyStats={monthlyStats} lastKeepAlive={lastKeepAlive} onResetRankProfit={handleResetRankProfit} onResetLoanProfit={handleResetLoanProfit} onNavigateToUsers={() => setCurrentView(AppView.ADMIN_USERS)} onLogout={handleLogout} onRefresh={() => fetchFullData(true)} />;
       case AppView.ADMIN_USERS: return <AdminUserManagement users={registeredUsers} loans={loans} isGlobalProcessing={isGlobalProcessing} onAction={handleAdminUserAction} onLoanAction={handleAdminLoanAction} onDeleteUser={handleDeleteUser} onAutoCleanup={handleAutoCleanupUsers} onFetchFullData={fetchFullData} onRefresh={() => fetchFullData(true)} onBack={() => setCurrentView(AppView.ADMIN_DASHBOARD)} />;
       case AppView.ADMIN_BUDGET: 
         return (
@@ -1840,8 +1794,9 @@ const App: React.FC = () => {
             onUpdate={async (val) => {
               setSystemBudget(val);
               try {
-                await authenticatedFetch('/api/budget', {
+                await fetch('/api/budget', {
                   method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ budget: val })
                 });
               } catch (e) {
@@ -1856,7 +1811,7 @@ const App: React.FC = () => {
           <AdminSystem 
             onReset={async () => {
               try {
-                await authenticatedFetch('/api/reset', { method: 'POST' });
+                await fetch('/api/reset', { method: 'POST' });
                 handleSystemRefresh(AppView.LOGIN);
               } catch (e) {
                 console.error("Lỗi reset hệ thống:", e);
@@ -1864,7 +1819,6 @@ const App: React.FC = () => {
             }}
             onImportSuccess={() => handleSystemRefresh(AppView.LOGIN)}
             onBack={() => setCurrentView(AppView.ADMIN_DASHBOARD)} 
-            authenticatedFetch={authenticatedFetch}
           />
         );
       default: 
@@ -1903,8 +1857,9 @@ const App: React.FC = () => {
                 const newNotif = { ...updatedNotif, read: true };
                 setNotifications(prev => prev.map(n => n.id === id ? newNotif : n));
                 // Targeted Sync - Only send the changed notification
-                authenticatedFetch('/api/notifications', {
+                fetch('/api/notifications', {
                   method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify([newNotif])
                 }).catch(e => console.error("Lỗi lưu trạng thái thông báo:", e));
               }
@@ -1915,8 +1870,9 @@ const App: React.FC = () => {
                 const updatedNotifs = userNotifs.map(n => ({ ...n, read: true }));
                 setNotifications(prev => prev.map(n => n.userId === user.id ? { ...n, read: true } : n));
                 // Targeted Sync - Only send notifications for this user
-                authenticatedFetch('/api/notifications', {
+                fetch('/api/notifications', {
                   method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(updatedNotifs)
                 });
               }

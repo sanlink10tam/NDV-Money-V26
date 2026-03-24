@@ -32,8 +32,8 @@ async function seed() {
     password: testPassword,
     joinDate: new Date().toLocaleDateString('vi-VN'),
     address: "123 Đường Test, Hà Nội",
-    bankName: "MSB",
-    bankAccountNumber: "7929121996",
+    bankName: "Timo",
+    bankAccountNumber: "0877203996",
     bankAccountHolder: "NGUYEN VAN TEST"
   });
 

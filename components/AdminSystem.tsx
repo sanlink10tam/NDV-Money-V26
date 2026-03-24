@@ -6,10 +6,9 @@ interface AdminSystemProps {
   onReset: () => void;
   onImportSuccess: () => void;
   onBack: () => void;
-  authenticatedFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
-const AdminSystem: React.FC<AdminSystemProps> = ({ onReset, onImportSuccess, onBack, authenticatedFetch }) => {
+const AdminSystem: React.FC<AdminSystemProps> = ({ onReset, onImportSuccess, onBack }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -26,7 +25,7 @@ const AdminSystem: React.FC<AdminSystemProps> = ({ onReset, onImportSuccess, onB
     setIsMigrating(true);
     setImportMessage(null);
     try {
-      const response = await authenticatedFetch('/api/migrate', { method: 'POST' });
+      const response = await fetch('/api/migrate', { method: 'POST' });
       const result = await response.json();
       if (response.ok) {
         setImportMessage({ type: 'success', text: result.message });
@@ -43,7 +42,7 @@ const AdminSystem: React.FC<AdminSystemProps> = ({ onReset, onImportSuccess, onB
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const response = await authenticatedFetch('/api/data?isAdmin=true');
+      const response = await fetch('/api/data?isAdmin=true');
       if (!response.ok) throw new Error('Failed to fetch data');
       const data = await response.json();
       
@@ -93,12 +92,13 @@ const AdminSystem: React.FC<AdminSystemProps> = ({ onReset, onImportSuccess, onB
           if (!data.users || !data.loans) {
             throw new Error('Định dạng file không hợp lệ');
           }
-          
-          const response = await authenticatedFetch('/api/import', {
+
+          const response = await fetch('/api/import', {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
           });
-          
+
           if (!response.ok) {
             const err = await response.json();
             throw new Error(err.message || 'Lỗi khi nhập dữ liệu');
