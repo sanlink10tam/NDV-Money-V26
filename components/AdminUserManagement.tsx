@@ -662,7 +662,7 @@ const AdminUserManagement: React.FC<AdminUserManagementProps> = ({ users, loans,
                                              return Math.round((loan.amount * 0.15) + (loan.fine || 0)).toLocaleString();
                                            } else if (loan.settlementType === 'PARTIAL') {
                                              const pAmt = loan.partialAmount || 0;
-                                             return Math.round(pAmt + (loan.amount * 0.15) + (loan.fine || 0)).toLocaleString();
+                                             return Math.round(pAmt + ((loan.amount - pAmt) * 0.15) + (loan.fine || 0)).toLocaleString();
                                            } else {
                                              return Math.round(loan.amount + (loan.fine || 0)).toLocaleString();
                                            }
